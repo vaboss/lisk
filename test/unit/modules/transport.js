@@ -11,16 +11,21 @@ var TransportModule = rewire('../../../modules/transport.js');
 describe('transport', function () {
 
 	var dbStub, loggerStub, busStub, schemaStub, networkStub, balancesSequenceStub,
-		transactionStub, blockStub, peersStub, broadcasterStubRef;
+		transactionStub, blockStub, peersStub, broadcasterStubRef, transportInstance,
+		library, __private, defaultScope;
 
 	beforeEach(function (done) {
+		// Recreate all the stubs and default structures before each test case to make
+		// sure that they are fresh every time; that way each test case can modify
+		// stubs without affecting other test cases.
+
 		dbStub = {
-			query: sinon.stub()
+			query: sinon.spy()
 		};
 
 		loggerStub = {
-			debug: sinon.stub(),
-			error: sinon.stub()
+			debug: sinon.spy(),
+			error: sinon.spy()
 		};
 
 		busStub = {};
@@ -41,6 +46,32 @@ describe('transport', function () {
 			}
 		});
 
+		defaultScope = {
+			logic: {
+				block: blockStub,
+				transaction: transactionStub,
+				peers: peersStub
+			},
+			db: dbStub,
+			logger: loggerStub,
+			bus: busStub,
+			schema: schemaStub,
+			network: networkStub,
+			balancesSequence: balancesSequenceStub,
+			config: {
+				peers: {
+					options: {
+						timeout: 1234
+					}
+				},
+				forging: {},
+				broadcasts: {
+					broadcastInterval: 10000,
+					releaseLimit: 10
+				}
+			}
+		};
+
 		done();
 	});
 
@@ -48,8 +79,8 @@ describe('transport', function () {
 
 		describe('library', function () {
 
-			it('should assign scope variables as part of instantiation', function (done) {
-				var transportInstance = new TransportModule(function (err, transportSelf) {
+			it('should assign scope variables when instantiating', function (done) {
+				var localTransportInstance = new TransportModule(function (err, transportSelf) {
 					var library = TransportModule.__get__('library');
 					var __private = TransportModule.__get__('__private');
 
@@ -67,61 +98,88 @@ describe('transport', function () {
 					expect(__private).to.have.property('broadcaster').which.is.equal(broadcasterStubRef);
 
 					expect(err).to.equal(null);
-					expect(transportSelf).to.equal(transportInstance);
+					expect(transportSelf).to.equal(localTransportInstance);
 
 					done();
-				}, {
-					logic: {
-						block: blockStub,
-						transaction: transactionStub,
-						peers: peersStub
-					},
-					db: dbStub,
-					logger: loggerStub,
-					bus: busStub,
-					schema: schemaStub,
-					network: networkStub,
-					balancesSequence: balancesSequenceStub,
-					config: {
-						peers: {
-							options: {
-								timeout: 1234
-							}
-						},
-						forging: {},
-						broadcasts: {
-							broadcastInterval: 10000,
-							releaseLimit: 10
-						}
-					}
-				});
+				}, defaultScope);
 			});
 		});
 	});
 
 	describe('__private', function () {
+		var library, __private;
+
+		beforeEach(function (done) {
+			transportInstance = new TransportModule(function (err, transportSelf) {
+				library = TransportModule.__get__('library');
+				__private = TransportModule.__get__('__private');
+				done();
+			}, defaultScope);
+		});
 
 		describe('hashsum', function () {
-
-			it('should return sha256 hash of given object');
+			// TODO: The current hash algorithm isn't a plain sha256
+			it('should return sha256 hash of given object', function (done) {
+				var obj = {a: 1, b: 2, c: 3};
+				var shasum = __private.hashsum(obj);
+				expect(shasum).to.equal('8802422598714041318');
+				done();
+			});
 		});
 
 		describe('removePeer', function () {
 
 			describe('when options.peer is undefined', function () {
 
-				it('should call library.logger.debug with "Cannot remove empty peer"');
+				it('should call library.logger.debug with "Cannot remove empty peer"', function (done) {
+					__private.removePeer({}, '');
+					expect(loggerStub.debug.called).to.be.true;
+					expect(loggerStub.debug.calledWith('Cannot remove empty peer')).to.be.true;
+					done();
+				});
 
-				it('should return false');
+				it('should return false', function (done) {
+					var result = __private.removePeer({}, '');
+					expect(result).to.be.false;
+					done();
+				});
 			});
 
 			describe('when options.peer is defined', function () {
 
-				it('should call library.logger.debug');
+				var removeSpy, peerData;
 
-				it('should call modules.peers.remove');
+				beforeEach(function (done) {
+					removeSpy = sinon.spy();
+					TransportModule.__set__({
+						modules: {
+							peers: {
+								remove: removeSpy
+							}
+						}
+					});
+					peerData = {
+						ip: '127.0.0.1',
+						wsPort: 8000
+					};
+					done();
+				});
 
-				it('should call modules.peers.remove with options.peer');
+				it('should call library.logger.debug', function (done) {
+					__private.removePeer({
+						peer: peerData
+					}, '');
+					expect(loggerStub.debug.called).to.be.true;
+					done();
+				});
+
+				it('should call modules.peers.remove with options.peer', function (done) {
+					__private.removePeer({
+						peer: peerData
+					}, '');
+					expect(removeSpy.calledWith(peerData)).to.be.true;
+					done();
+				});
 			});
 		});
 
