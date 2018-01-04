@@ -283,7 +283,27 @@ describe('transport', function () {
 
 			describe('when library.schema.validate fails', function () {
 
-				it('should call series callback with error = "Invalid signatures body"');
+				it('should call series callback with error = "Invalid signatures body"', function (done) {
+					__private.receiveSignature = function (signature, callback) {
+						callback();
+					};
+
+					var validateWasCalled = false;
+					library.schema.validate = function (query, signaturesSchema, callback) {
+						validateWasCalled = true;
+						var err = new Error('Transaction did not match schema');
+						err.code = 'INVALID_FORMAT';
+						callback(err);
+					};
+
+					__private.receiveSignatures({
+						signatures: ['TODO123', 'TODO456'] // TODO Use proper signatures
+					}, function (err) {
+						expect(validateWasCalled).to.be.true;
+						expect(err).to.equal('Invalid signatures body');
+						done();
+					});
+				});
 			});
 
 			describe('when library.schema.validate succeeds', function () {
