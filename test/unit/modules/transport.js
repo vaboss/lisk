@@ -108,13 +108,35 @@ describe('transport', function () {
 
 	describe('__private', function () {
 		var library, __private;
+		var libraryOriginal, __privateOriginal;
 
 		beforeEach(function (done) {
+			libraryOriginal = {};
+			__privateOriginal = {};
+
 			transportInstance = new TransportModule(function (err, transportSelf) {
 				library = TransportModule.__get__('library');
 				__private = TransportModule.__get__('__private');
+				Object.keys(library).forEach(function (field) {
+					libraryOriginal[field] = library[field];
+				});
+				Object.keys(__private).forEach(function (field) {
+					__privateOriginal[field] = __private[field];
+				});
 				done();
 			}, defaultScope);
+		});
+
+		afterEach(function (done) {
+			// Reset __private and library module variables to their
+			// original states.
+			Object.keys(libraryOriginal).forEach(function (field) {
+				library[field] = libraryOriginal[field];
+			});
+			Object.keys(__privateOriginal).forEach(function (field) {
+				__private[field] = __privateOriginal[field];
+			});
+			done();
 		});
 
 		describe('hashsum', function () {
@@ -132,14 +154,14 @@ describe('transport', function () {
 			describe('when options.peer is undefined', function () {
 
 				it('should call library.logger.debug with "Cannot remove empty peer"', function (done) {
-					__private.removePeer({}, '');
+					__private.removePeer({}, 'Custom peer remove message');
 					expect(loggerStub.debug.called).to.be.true;
 					expect(loggerStub.debug.calledWith('Cannot remove empty peer')).to.be.true;
 					done();
 				});
 
 				it('should return false', function (done) {
-					var result = __private.removePeer({}, '');
+					var result = __private.removePeer({}, 'Custom peer remove message');
 					expect(result).to.be.false;
 					done();
 				});
@@ -168,7 +190,7 @@ describe('transport', function () {
 				it('should call library.logger.debug', function (done) {
 					__private.removePeer({
 						peer: peerData
-					}, '');
+					}, 'Custom peer remove message');
 					expect(loggerStub.debug.called).to.be.true;
 					done();
 				});
@@ -176,7 +198,7 @@ describe('transport', function () {
 				it('should call modules.peers.remove with options.peer', function (done) {
 					__private.removePeer({
 						peer: peerData
-					}, '');
+					}, 'Custom peer remove message');
 					expect(removeSpy.calledWith(peerData)).to.be.true;
 					done();
 				});
@@ -185,11 +207,79 @@ describe('transport', function () {
 
 		describe('receiveSignatures', function () {
 
-			it('should call library.schema.validate');
+			it('should call library.schema.validate with empty query.signatures', function (done) {
+				__private.receiveSignature = function (signature, callback) {
+					callback();
+				};
 
-			it('should call library.schema.validate with query');
+				var validateWasCalled = false;
+				library.schema.validate = function (query, signaturesSchema, callback) {
+					validateWasCalled = true;
+					callback();
+				};
 
-			it('should call library.schema.validate with schema.signatures');
+				__private.receiveSignatures({
+					signatures: []
+				}, function (err) {
+					expect(validateWasCalled).to.be.true;
+					done();
+				});
+			});
+
+			it('should call library.schema.validate with query.signatures', function (done) {
+				__private.receiveSignature = function (signature, callback) {
+					callback();
+				};
+
+				var validateWasCalled = false;
+				library.schema.validate = function (query, signaturesSchema, callback) {
+					validateWasCalled = true;
+					callback();
+				};
+
+				__private.receiveSignatures({
+					signatures: ['TODO123', 'TODO456'] // TODO Use proper signatures
+				}, function (err) {
+					expect(validateWasCalled).to.be.true;
+					done();
+				});
+			});
+
+			it('should call library.schema.validate with custom schema.signatures', function (done) {
+				TransportModule.__set__({
+					schema: {
+						signatures: {
+							id: 'transport.signatures',
+							type: 'object',
+							properties: {
+								signatures: {
+									type: 'array',
+									minItems: 1,
+									maxItems: 40
+								}
+							},
+							required: ['signatures']
+						}
+					}
+				});
+
+				__private.receiveSignature = function (signature, callback) {
+					callback();
+				};
+
+				var validateWasCalled = false;
+				library.schema.validate = function (query, signaturesSchema, callback) {
+					validateWasCalled = true;
+					callback();
+				};
+
+				__private.receiveSignatures({
+					signatures: ['TODO123', 'TODO456'] // TODO Use proper signatures
+				}, function (err) {
+					expect(validateWasCalled).to.be.true;
+					done();
+				});
+			});
 
 			describe('when library.schema.validate fails', function () {
 
