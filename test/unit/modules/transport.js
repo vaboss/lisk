@@ -14,6 +14,8 @@ describe('transport', function () {
 		transactionStub, blockStub, peersStub, broadcasterStubRef, transportInstance,
 		library, __private, defaultScope;
 
+	var restoreRewiredTopDeps;
+
 	beforeEach(function (done) {
 		// Recreate all the stubs and default structures before each test case to make
 		// sure that they are fresh every time; that way each test case can modify
@@ -40,7 +42,7 @@ describe('transport', function () {
 		blockStub = {};
 		peersStub = {};
 
-		TransportModule.__set__({
+		restoreRewiredTopDeps = TransportModule.__set__({
 			Broadcaster: function () {
 				broadcasterStubRef = this;
 			}
@@ -72,6 +74,11 @@ describe('transport', function () {
 			}
 		};
 
+		done();
+	});
+
+	afterEach(function (done) {
+		restoreRewiredTopDeps();
 		done();
 	});
 
@@ -170,10 +177,11 @@ describe('transport', function () {
 			describe('when options.peer is defined', function () {
 
 				var removeSpy, peerData;
+				var restoreRewiredDeps;
 
 				beforeEach(function (done) {
 					removeSpy = sinon.spy();
-					TransportModule.__set__({
+					restoreRewiredDeps = TransportModule.__set__({
 						modules: {
 							peers: {
 								remove: removeSpy
@@ -184,6 +192,11 @@ describe('transport', function () {
 						ip: '127.0.0.1',
 						wsPort: 8000
 					};
+					done();
+				});
+
+				afterEach(function (done) {
+					restoreRewiredDeps();
 					done();
 				});
 
@@ -246,7 +259,7 @@ describe('transport', function () {
 			});
 
 			it('should call library.schema.validate with custom schema.signatures', function (done) {
-				TransportModule.__set__({
+				var restoreRewiredDeps = TransportModule.__set__({
 					schema: {
 						signatures: {
 							id: 'transport.signatures',
@@ -277,6 +290,8 @@ describe('transport', function () {
 					signatures: ['TODO123', 'TODO456'] // TODO Use proper signatures
 				}, function (err) {
 					expect(validateWasCalled).to.be.true;
+
+					restoreRewiredDeps();
 					done();
 				});
 			});
