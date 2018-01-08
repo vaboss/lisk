@@ -341,9 +341,9 @@ Process.prototype.loadBlocksOffset = function (limit, offset, verify, cb) {
 							return setImmediate(cb, err);
 						} else {
 							// Apply block - broadcast: false, saveBlock: false
-							modules.blocks.chain.applyBlock(block, false, function (err) {
+							modules.blocks.chain.applyBlock(block, false, false, function (err) {
 								setImmediate(cb, err);
-							}, false);
+							});
 						}
 					});
 
@@ -430,7 +430,7 @@ Process.prototype.loadBlocksFromPeer = function (peer, cb) {
 	// Process single block
 	function processBlock (block, seriesCb) {
 		// Start block processing - broadcast: false, saveBlock: true
-		modules.blocks.verify.processBlock(block, false, function (err) {
+		modules.blocks.verify.processBlock(block, false, true, function (err) {
 			if (!err) {
 				// Update last valid block
 				lastValidBlock = block;
@@ -441,7 +441,7 @@ Process.prototype.loadBlocksFromPeer = function (peer, cb) {
 				library.logger.debug('Block processing failed', {id: id, err: err.toString(), module: 'blocks', block: block});
 			}
 			return seriesCb(err);
-		}, true);
+		});
 	}
 
 	async.waterfall([
