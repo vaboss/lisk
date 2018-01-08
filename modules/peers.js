@@ -170,7 +170,6 @@ __private.updatePeerStatus = function (err, status, peer) {
 
 	if (err) {
 		peer.applyHeaders({state: Peer.STATE.DISCONNECTED});
-		return false;
 	} else {
 		peer.applyHeaders({
 			height: status.height,
